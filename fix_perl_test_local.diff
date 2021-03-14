@@ -1,0 +1,110 @@
+Description: <short summary of the patch>
+ TODO: Put a short summary on the line above and replace this paragraph
+ with a longer explanation of this change. Complete the meta-information
+ with other relevant fields (see below for details). To make it easier, the
+ information below has been extracted from the changelog. Adjust it or drop
+ it.
+ .
+ perl (5.24.1-3ubuntu1) artful; urgency=low
+ .
+   * Merge from Debian unstable.  Remaining changes:
+     - d/p/f/Compress-Raw-Zlib-2.071-Adapt-tests-to-zlib-1.2.11.patch,
+     - d/p/f/0001-Adapt-tests-to-zlib-1.2.11.patch:
+       - backport upstream patch to fix t/02zlib.t because of new zlib
+Author: Gianfranco Costamagna <locutusofborg@debian.org>
+
+---
+The information above should follow the Patch Tagging Guidelines, please
+checkout http://dep.debian.net/deps/dep3/ to learn about the format. Here
+are templates for supplementary fields that you might want to add:
+
+Origin: <vendor|upstream|other>, <url of original patch>
+Bug: <url in upstream bugtracker>
+Bug-Debian: https://bugs.debian.org/<bugnumber>
+Bug-Ubuntu: https://launchpad.net/bugs/<bugnumber>
+Forwarded: <no|not-needed|url proving that it has been forwarded>
+Reviewed-By: <name and email of someone who approved the patch>
+Last-Update: <YYYY-MM-DD>
+
+--- perl-5.24.1.orig/cpan/Time-Local/t/Local.t
++++ perl-5.24.1/cpan/Time-Local/t/Local.t
+@@ -80,19 +80,17 @@ my $epoch_is_64 = eval { $Config{ivsize}
+ 
+ for (@time, @neg_time) {
+     my($year, $mon, $mday, $hour, $min, $sec) = @$_;
+-    $year -= 1900;
+     $mon--;
+ 
+     SKIP: {
+         skip '1970 test on VOS fails.', 12
+-            if $^O eq 'vos' && $year == 70;
++            if $^O eq 'vos' && $year == 1970;
+         skip 'this platform does not support negative epochs.', 12
+-            if $year < 70 && ! $neg_epoch_ok;
++            if $year < 1970 && !$neg_epoch_ok;
+ 
+         # Test timelocal()
+         {
+-            my $year_in = $year < 70 ? $year + 1900 : $year;
+-            my $time = timelocal($sec,$min,$hour,$mday,$mon,$year_in);
++			my $time = timelocal( $sec, $min, $hour, $mday, $mon, $year );
+ 
+             my($s,$m,$h,$D,$M,$Y) = localtime($time);
+ 
+@@ -101,14 +99,13 @@ for (@time, @neg_time) {
+             is($h, $hour, "timelocal hour for @$_");
+             is($D, $mday, "timelocal day for @$_");
+             is($M, $mon, "timelocal month for @$_");
+-            is($Y, $year, "timelocal year for @$_");
++            is($Y, $year - 1900, "timelocal year for @$_");
+         }
+ 
+ 
+         # Test timegm()
+         {
+-            my $year_in = $year < 70 ? $year + 1900 : $year;
+-            my $time = timegm($sec,$min,$hour,$mday,$mon,$year_in);
++            my $time = timegm( $sec, $min, $hour, $mday, $mon, $year );
+ 
+             my($s,$m,$h,$D,$M,$Y) = gmtime($time);
+ 
+@@ -117,7 +114,7 @@ for (@time, @neg_time) {
+             is($h, $hour, "timegm hour for @$_");
+             is($D, $mday, "timegm day for @$_");
+             is($M, $mon, "timegm month for @$_");
+-            is($Y, $year, "timegm year for @$_");
++            is($Y, $year - 1900, "timegm year for @$_");
+         }
+     }
+ }
+@@ -204,6 +201,30 @@ SKIP:
+         'can call timegm for 2**40 epoch seconds (on a 64-bit system)' );
+ }
+ 
++# 2-digit years
++{
++	my $current_year = ( localtime() )[5];
++	my $pre_break    = ( $current_year + 49 ) - 100;
++	my $break        = ( $current_year + 50 ) - 100;
++	my $post_break   = ( $current_year + 51 ) - 100;
++
++	is(
++		( ( localtime( timelocal( 0, 0, 0, 1, 1, $pre_break ) ) )[5] ),
++		$pre_break + 100,
++		"year $pre_break is treated as next century",
++	);
++	is(
++		( ( localtime( timelocal( 0, 0, 0, 1, 1, $break ) ) )[5] ),
++		$break + 100,
++		"year $break is treated as next century",
++	);
++	is(
++		( ( localtime( timelocal( 0, 0, 0, 1, 1, $post_break ) ) )[5] ),
++		$post_break,
++		"year $post_break is treated as current century",
++	);
++}
++
+ SKIP:
+ {
+     skip 'These tests only run for the package maintainer.', 8
